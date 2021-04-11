@@ -2,7 +2,6 @@ package de.planetcat.protopietomidi
 
 import android.content.*
 import android.os.*
-import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -36,27 +35,12 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             val messageId = intent.getStringExtra("messageId")
             val value = intent.getStringExtra("value")
-            println("Message from ProtoPie. messageId=$messageId value=$value")
             if (mBound) {
                 if (messageId != null) {
-                    val midiStringParameters = messageId.split("-")
-                    if (midiStringParameters.size == 3) {
-                        if (value != null && value.toInt() < 128) {
-                            mService.convertMidiStringToMidiMessageAndSend(midiStringParameters, value.toInt())
-                        } else {
-                            mService.convertMidiStringToMidiMessageAndSend(midiStringParameters, 127)
-                        }
-                        if (debugmode) {
-                            val text = "PP->MID: $messageId - $value" //Show that it worked :)
-                            val duration = Toast.LENGTH_SHORT
-                            val toast = Toast.makeText(applicationContext, text, duration)
-                            toast.show()
-                        }
+                    if (value != null && value.toInt() < 128) {
+                        mService.convertMidiStringToMidiMessageAndSend(messageId, value.toInt(), debugmode)
                     } else {
-                        val text = "P2M Fehler: falsches Nachrichtenformat bei $messageId"
-                        val duration = Toast.LENGTH_SHORT
-                        val toast = Toast.makeText(applicationContext, text, duration)
-                        toast.show()
+                        mService.convertMidiStringToMidiMessageAndSend(messageId, 127, debugmode)
                     }
                 }
             }
@@ -91,11 +75,13 @@ class MainActivity : AppCompatActivity() {
         {
             if (!debugmode) {
                 debugmode = true
+                mService.setDebugMode(true)
                 text.text = getTextfieldInformation()
                 debugbutton.text = getString(R.string.stopdebug)
             } else {
                 debugmode = false
                 text.text = getTextfieldInformation()
+                mService.setDebugMode(false)
                 debugbutton.text = getString(R.string.startdebug)
             }
         }

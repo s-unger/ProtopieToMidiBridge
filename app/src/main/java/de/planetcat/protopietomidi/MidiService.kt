@@ -7,9 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.midi.*
-import android.os.Binder
-import android.os.Build
-import android.os.IBinder
+import android.os.*
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -22,6 +20,19 @@ class MidiService : Service()  {
     private val CHANNELID = "ForegroundService Kotlin"
     private lateinit var inputPort: MidiInputPort
     private var connected = false
+    var handler: Handler? = null
+    private var debugmode = false
+
+    override fun onCreate() {
+        // Handler will get associated with the current thread,
+        // which is the main thread.
+        handler = Handler()
+        super.onCreate()
+    }
+
+    private fun runOnUiThread(runnable: Runnable) {
+        handler!!.post(runnable)
+    }
 
 
     //To Receive The Data MainActivity gets from ProtoPie
@@ -34,10 +45,9 @@ class MidiService : Service()  {
         return binder
     }
 
-    fun convertMidiStringToMidiMessageAndSend(midiStringParameters: List<String>, valueAsInt: Int) {
-        println(midiStringParameters.toString())
-        println(midiStringParameters.size)
-        if (midiStringParameters.size <= 3) {
+    fun convertMidiStringToMidiMessageAndSend(midiStringAsText: String, valueAsInt: Int, debugmode: Boolean) {
+        val midiStringParameters = midiStringAsText.split("-")
+        if (midiStringParameters.size == 3) {
             var status = 0b00000000
             when (midiStringParameters[0]) {
                 Status.NoteOff.toString() -> {
@@ -70,18 +80,27 @@ class MidiService : Service()  {
             buffer[0] = status.toUByte().toByte() or channel.toByte()
             buffer[1] = midiStringParameters[2].toInt().toUByte().toByte()
             buffer[2] = valueAsInt.toInt().toUByte().toByte()
-            println("Hammond was here")
-            println(buffer[0].toUByte().toString(2))
-            println(buffer[1].toUByte().toString(2))
-            println(buffer[2].toUByte().toString(2))
             if (connected == true && inputPort != null) {
-                inputPort.send(buffer, 0, 3);
+                inputPort.send(buffer, 0, 3)
+                if (debugmode) {
+                    val text = "PP->MID: $midiStringAsText - $valueAsInt" //Show that it worked :)
+                    val duration = Toast.LENGTH_SHORT
+                    val toast = Toast.makeText(applicationContext, text, duration)
+                    toast.show()
+                    val handler = Handler()
+                    handler.postDelayed({ toast.cancel() }, 500)
+                }
             } else {
                 val text = "P2M Fehler: Midiverbindung getrennt. Bitte P2M-App neu starten."
                 val duration = Toast.LENGTH_SHORT
                 val toast = Toast.makeText(applicationContext, text, duration)
                 toast.show()
             }
+        } else {
+            val text = "P2M Fehler: falsches Nachrichtenformat bei $midiStringAsText"
+            val duration = Toast.LENGTH_SHORT
+            val toast = Toast.makeText(applicationContext, text, duration)
+            toast.show()
         }
     }
 
@@ -104,8 +123,8 @@ class MidiService : Service()  {
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this,
-            0, notificationIntent, 0
+                this,
+                0, notificationIntent, 0
         )
         val notification = NotificationCompat.Builder(this, CHANNELID)
             .setContentTitle("Bridge running")
@@ -124,8 +143,8 @@ class MidiService : Service()  {
                 class MyReceiver : MidiReceiver() {
                     @Throws(IOException::class)
                     override fun onSend(
-                        data: ByteArray, offset: Int,
-                        count: Int, timestamp: Long
+                            data: ByteArray, offset: Int,
+                            count: Int, timestamp: Long
                     ) {
                         // parse MIDI or whatever
                         val midicmd = decodeMidi(data.toUByteArray(), offset)
@@ -136,7 +155,17 @@ class MidiService : Service()  {
                         intent.putExtra("messageId", text)
                         intent.putExtra("value", midicmd.value2) // Optional
                         this@MidiService.sendBroadcast(intent)
-
+                        val valueAsInt = midicmd.value2.toString()
+                        val debugtext = "MID->PP: $text - $valueAsInt" //Show that it worked :)
+                        val duration = Toast.LENGTH_SHORT
+                        if (debugmode) {
+                            Handler(Looper.getMainLooper()).post {
+                                val toast = Toast.makeText(applicationContext, debugtext, duration)
+                                toast.show()
+                                val handler = Handler()
+                                handler.postDelayed({ toast.cancel() }, 500)
+                            }
+                        }
                     }
                 }
 
@@ -164,8 +193,8 @@ class MidiService : Service()  {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                CHANNELID, "Foreground Service Channel",
-                NotificationManager.IMPORTANCE_DEFAULT
+                    CHANNELID, "Foreground Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
             )
             val manager = getSystemService(NotificationManager::class.java)
             manager!!.createNotificationChannel(serviceChannel)
@@ -206,11 +235,15 @@ class MidiService : Service()  {
         }
         val lsb: UByte = byteArray[offset].toUByte() and 15.toUByte()
         return MidiCmd(
-            status,
-            lsb.toInt(),
-            byteArray[offset + 1].toUByte().toInt(),
-            byteArray[offset + 2].toUByte().toInt()
+                status,
+                lsb.toInt(),
+                byteArray[offset + 1].toUByte().toInt(),
+                byteArray[offset + 2].toUByte().toInt()
         )
+    }
+
+    public fun setDebugMode(mode: Boolean) {
+        debugmode = mode
     }
 
 
