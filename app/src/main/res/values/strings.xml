@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">P2M ProtoPieToMidi</string>
+    <string name="notification_title">P2M Bridge</string>
+    <string name="notification_message">running…</string>
+    <string name="startbridge">Bridge starten</string>
+    <string name="bridgenotrunning">Bridge ist aus.</string>
+    <string name="stopbridge">Bridge stoppen</string>
+    <string name="bridgeisactive">Bridge läuft.</string>
+    <string name="stopdebug">Nur noch Fehler zeigen</string>
+    <string name="startdebug">Übertragene Nachrichten zeigen</string>
+    <string name="debugon">Debug-Modus läuft</string>
+    <string name="protopie_midi_bridge">ProtoPie-Midi-Bridge</string>
+    <string name="bertragene_nachrichten_zeigen">Übertragene Nachrichten zeigen</string>
+</resources>
